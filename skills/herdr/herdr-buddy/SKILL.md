@@ -10,6 +10,12 @@ argument-hint: "[omx|omp|claude] [label]"
 stopping to confirm — and it means the buddy can run anything reachable from its cwd.
 Only ever in a worktree.
 
+**A buddy is a pane beside you, in the worktree you are already standing in.** It does
+not cut a worktree, does not open a space, does not move to another repo. If the work
+belongs somewhere else, cut that worktree first with `/herdr-wt` and run this from
+inside it — going to fetch the other repo yourself is the wrong skill, and it leaves a
+stray worktree and space to clean up.
+
 ## Run it
 
 ```bash
@@ -94,13 +100,51 @@ herdr pane read <pane> --source recent-unwrapped --lines 60
 git -C <worktree> status --short
 ```
 
+## `Ask Codex` is not proof the buddy is ready
+
+On a state directory omx has not seen before, it stops at a trust gate **before** the
+prompt exists:
+
+```
+  Hooks need review
+  5 hooks are new or changed.
+  Hooks can run outside the sandbox after you trust them.
+
+› 1. Review hooks
+  2. Trust all and continue
+  3. Continue without trusting (hooks won't run)
+```
+
+`wait-output --match "Ask Codex"` matches anyway — the string is on screen as chrome —
+so the script reports ready, the rename succeeds, and `agent prompt` then dies with
+`timeout: timed out waiting for agent status` while the menu sits untouched. Observed
+twice on 2026-09-16, in two different worktrees, each with a fresh
+`~/.omx-runs/run-*` isolated state.
+
+**Do not answer that gate on the human's behalf.** Trusting hooks lets them run outside
+the sandbox, in a pane where approvals are already bypassed — that is the human's
+decision, not the buddy-launcher's. Surface the three options and stop.
+
+Check for it after the wait returns, before prompting:
+
+```bash
+if herdr pane read "$pane" --source visible --lines 20 | rg -q "Hooks need review"; then
+  echo "omx is at the hooks trust gate — ask the human (1 review / 2 trust all / 3 continue without)"
+  herdr pane read "$pane" --source visible --lines 12
+  exit 2
+fi
+```
+
+A prompt `timeout` is not proof the text never landed. Read the pane before re-sending;
+re-sending into a menu answers it by accident.
+
 ## Known gap
 
-Only `omx` has a real readiness signal (`Ask Codex`). `omp` and `claude` fall back to a
-flat 6-second sleep, so on a cold pane — direnv alone can take ~40s — the rename can fire
-before the agent exists and silently no-op (`|| true`). The pane still works; it is just
-unnamed. If you find a stable first-output marker for either, replace the sleep with
-`wait-output`.
+Only `omx` has a readiness signal at all (`Ask Codex`), and per above it is not a
+reliable one. `omp` and `claude` fall back to a flat 6-second sleep, so on a cold pane —
+direnv alone can take ~40s — the rename can fire before the agent exists and silently
+no-op (`|| true`). The pane still works; it is just unnamed. If you find a stable
+first-output marker for either, replace the sleep with `wait-output`.
 
 ## Related
 
