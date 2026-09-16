@@ -1,6 +1,6 @@
 ---
 name: herdr-idea
-description: Start a numbered lab that exists on disk — auto-increments NN from ψ/lab, cuts a worktree at <repo>/wt/NN-slug, locks it, opens its own herdr space, and scaffolds ψ/lab/NN-slug/README.md with a charter-lite whose Who: line names the worktree that was actually created. Self-contained; works without any justfile recipe. Use when the user says "herdr idea", "new lab with a worktree", "start lab NN", or wants a lab that comes with a body rather than only a README. Do NOT use for the prism+grill interview that decides WHAT the lab is (use /lab-idea first, then this), for a plain task worktree (use /herdr-wt), or for another oracle's topic (use /herdr-incubate).
+description: "Start a numbered lab that exists on disk — auto-increments NN from ψ/lab, cuts a worktree at <repo>/wt/NN-slug, locks it, opens its own herdr space, and scaffolds ψ/lab/NN-slug/README.md with a charter-lite whose Who: line names the worktree that was actually created. Self-contained; works without any justfile recipe. Use when the user says \"herdr idea\", \"new lab with a worktree\", \"start lab NN\", or wants a lab that comes with a body rather than only a README. Do NOT use for the prism+grill interview that decides WHAT the lab is (use /lab-idea first, then this), for a plain task worktree (use /herdr-wt), or for another oracle's topic (use /herdr-incubate)."
 argument-hint: "<slug> [base-ref]"
 ---
 
