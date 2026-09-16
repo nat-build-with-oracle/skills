@@ -1,0 +1,28 @@
+{
+  "name": "oracle-herdr-skills",
+  "version": "0.1.0",
+  "description": "herdr workflows for Claude Code: parallel worktree spaces, PR signing with a reachable session address, incubating other people's repos, and the traps that shaped each one.",
+  "author": {
+    "name": "Build with Oracle"
+  },
+  "repository": "https://github.com/nat-build-with-oracle/skills",
+  "license": "MIT",
+  "keywords": [
+    "herdr",
+    "worktree",
+    "multi-agent",
+    "oracle",
+    "pull-request",
+    "tmux"
+  ],
+  "skills": [
+    "./skills/herdr/setup-herdr-skills",
+    "./skills/herdr/herdr-wt",
+    "./skills/herdr/herdr-bring",
+    "./skills/herdr/herdr-idea",
+    "./skills/herdr/herdr-incubate",
+    "./skills/herdr/herdr-pr",
+    "./skills/herdr/herdr-ticket",
+    "./skills/herdr/herdr-buddy"
+  ]
+}

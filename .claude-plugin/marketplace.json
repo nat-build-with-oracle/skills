@@ -1,0 +1,17 @@
+{
+  "name": "build-with-oracle",
+  "owner": {
+    "name": "Build with Oracle",
+    "url": "https://github.com/nat-build-with-oracle"
+  },
+  "description": "Oracle skills for Claude Code, as an installable plugin.",
+  "plugins": [
+    {
+      "name": "oracle-herdr-skills",
+      "source": "./",
+      "description": "herdr workflows: worktree spaces, PR signing, incubation, tickets and buddies.",
+      "category": "engineering",
+      "keywords": ["herdr", "worktree", "multi-agent", "oracle"]
+    }
+  ]
+}
