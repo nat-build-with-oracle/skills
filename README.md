@@ -45,6 +45,8 @@ assume.
 | `herdr-pr` | Sign a PR with which oracle, which model, which commit, and an address that answers back |
 | `herdr-ticket` | Turn a session's findings into tickets that survive the session |
 | `herdr-buddy` | Bring up a second agent beside you in the same space |
+| `herdr-peek` | See what every agent is doing, and what any one of them last printed |
+| `herdr-done` | Decide whether a session is safe to close, and what hand-off is still owed |
 
 ## Requirements
 

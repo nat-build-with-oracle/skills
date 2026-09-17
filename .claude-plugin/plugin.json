@@ -23,6 +23,8 @@
     "./skills/herdr/herdr-incubate",
     "./skills/herdr/herdr-pr",
     "./skills/herdr/herdr-ticket",
-    "./skills/herdr/herdr-buddy"
+    "./skills/herdr/herdr-buddy",
+    "./skills/herdr/herdr-done",
+    "./skills/herdr/herdr-peek"
   ]
 }
