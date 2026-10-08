@@ -48,7 +48,7 @@ assume.
 | `herdr-idea` | Spin an idea into its own throwaway space without touching the main tree |
 | `herdr-incubate` | Work someone else's repo from your oracle, with a breadcrumb linking the two |
 | `herdr-issue` | Task to a GitHub issue in the right repo first, then a worktree and a briefed agent *(needs fleet)* |
-| `herdr-ticket` | Turn a session's findings into tickets that survive the session |
+| `herdr-ticket` | Work a GitHub issue in its own worktree and space — an interactive agent, or `--oneshot`: one resumable `claude -p` run that ends in a draft PR |
 | `herdr-team` | Bring up a team charter as agents in one space |
 
 **Talking to the agent next door**
