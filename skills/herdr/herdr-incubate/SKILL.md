@@ -7,7 +7,7 @@ argument-hint: "<oracle> [dated|plain] [base-ref]"
 # /herdr-incubate — another oracle's topic, in your own repo
 
 The worktree is a branch of the **current** repo. It is NOT a checkout of the target.
-`neo-haos-14sep-mon2026` is <oracle>-oracle code, on a <oracle>-oracle branch, for haos work.
+`<oracle>-haos-14sep-mon2026` is <oracle>-oracle code, on a <oracle>-oracle branch, for haos work.
 
 ## Run it
 
@@ -84,7 +84,7 @@ Two exit-code traps, both hit for real:
 
 `.claude/INCUBATED_BY` is read by `/recap`, which prints an `⚠️ INCUBATED REPO` banner
 from it. Same key order as the existing fleet convention (see
-`<org>/status-tray/.claude/INCUBATED_BY`), plus `target` / `target-repo`.
+`<org>/oracle-status-tray/.claude/INCUBATED_BY`), plus `target` / `target-repo`.
 
 Without it, the branch name is the only clue about intent, and it is gone the moment the
 sidebar truncates.

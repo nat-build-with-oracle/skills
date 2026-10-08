@@ -9,7 +9,7 @@
     {
       "name": "oracle-herdr-skills",
       "source": "./",
-      "description": "herdr workflows: worktree spaces, PR signing, incubation, tickets and buddies.",
+      "description": "herdr workflows: worktree spaces, PR signing, incubation, tickets, buddies, neighbours and tidy-up.",
       "category": "engineering",
       "keywords": ["herdr", "worktree", "multi-agent", "oracle"]
     }
