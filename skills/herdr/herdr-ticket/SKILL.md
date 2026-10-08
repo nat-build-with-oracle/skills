@@ -167,6 +167,7 @@ Traps, each measured 2026-10-08 on a probe worktree:
 | `--bg --resume` with new flags | started a copy (`6ff1e616`) instead of continuing `e0cd469a` | uses `-p --resume`: same session id every time (verified) |
 | two writers on one session | — (by design) | refuses while `claude agents --json` lists the uuid or the pidfile is alive |
 | `maw token use` rewrites a tracked `.envrc` | would land in the worker's commit | `git update-index --skip-worktree .envrc` (untracked: `info/exclude`) |
+| `claude` started from an agent's own shell | herdr's claude hook reported the child's session for **the calling agent's** pane (`$HERDR_PANE_ID` is inherited) — the caller's pane then named a probe's session, so a herdr reopen would resume the wrong conversation | the runner hides `HERDR_ENV`/`HERDR_PANE_ID` from the child unless its pane's cwd is the worktree; repair a pane with `herdr pane report-agent-session <pane> --source herdr:claude --agent claude --agent-session-id <real-id> --seq "$(python3 -c 'import time; print(time.time_ns())')"` — the seq must be newer than the hook's `time_ns()` |
 
 From the oracle app: the Issues page's **Pick up (one-shot)** puts `/herdr-ticket N --oneshot`
 in the message box; ⌘↩ sends it to the oracle's main agent, which runs `pick` here.

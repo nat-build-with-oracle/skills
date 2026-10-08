@@ -45,9 +45,18 @@ args=(-p "${sess[@]}" --model "$MODEL" --output-format stream-json --verbose)
 [ -n "$PERM" ] && args+=(--permission-mode "$PERM")
 printf '── %s · %s · session %s · %s\n' "$mode" "$(basename "$dest")" "${U:0:8}" "$MODEL"
 
+# herdr's claude hook (~/.claude/hooks/herdr-agent-state.sh) reports this run's session for $HERDR_PANE_ID. In the
+# worktree's own pane that is right; run from another agent's shell it would re-label THAT agent's pane with this
+# session (seen 2026-10-08), so hide herdr from the child there.
+hide=()
+if [ -n "${HERDR_PANE_ID:-}" ]; then
+  pc=$(herdr pane get "$HERDR_PANE_ID" 2>/dev/null | jq -r '.result.pane.cwd // empty')
+  case "$pc" in "$dest"|"$dest"/*) ;; *) hide=(-u HERDR_ENV -u HERDR_PANE_ID) ;; esac
+fi
+
 # direnv exec: the token comes from THIS worktree's .envrc, not from whatever the pane's shell loaded.
 # env -u: when started from inside another claude, its child-session markers must not leak in.
-direnv exec "$dest" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION \
+direnv exec "$dest" env ${hide[@]+"${hide[@]}"} -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION \
   -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_SESSION_ATTENDED -u CLAUDE_PID \
   -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN \
   claude "${args[@]}" < "$input" | tee "$raw" | jq --unbuffered -rj -f "$here/oneshot-view.jq"
