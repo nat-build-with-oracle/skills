@@ -1,6 +1,6 @@
 ---
 name: herdr-ticket
-description: Take a GitHub issue through an isolated implementation in its own herdr SPACE and worktree, named /herdr-wt's way (wt/<slug>-<oracle>-issue<N>-<date>). Self-contained; works in any repo on any machine, no justfile recipe needed. Cuts the branch off origin/<default>, locks the worktree, opens a space (not a tab), then EITHER starts an interactive agent and briefs it (default) OR, with --oneshot, runs the issue as one `claude -p` turn that exits when done and stays resumable — `--continue N <msg>` resumes it headless, `--open N` reopens it as a full session. Use when the user says "ticket", "work issue N", "take issue N", "pick up issue N", "one-shot issue N", "herdr ticket", or the oracle app's Issues page sends `/herdr-ticket N --oneshot`. Do NOT use for a plain task worktree with no issue behind it (use /herdr-wt), for another oracle's topic (use /herdr-incubate), or to land an existing maw handle (use /herdr-bring).
+description: Take a GitHub issue through an isolated implementation in its own herdr SPACE and worktree, named /herdr-wt's way (wt/<slug>-<oracle>-issue<N>-<date>). Self-contained; works in any repo on any machine, no justfile recipe needed. One script, ticket.sh, cuts the branch off origin/<default>, locks the worktree, opens a space (not a tab) and starts a STATEFUL interactive claude briefed with the issue (default), or with --oneshot runs one `claude -p` turn that exits and stays resumable; `--continue N <msg>` talks to the live agent or resumes headless, `--open N` focuses or reopens it as a full session. Use when the user says "ticket", "work issue N", "take issue N", "pick up issue N", "one-shot issue N", "herdr ticket", or the oracle app's Issues page sends `/herdr-ticket N --oneshot`. Do NOT use for a plain task worktree with no issue behind it (use /herdr-wt), for another oracle's topic (use /herdr-incubate), or to land an existing maw handle (use /herdr-bring).
 ---
 
 # /herdr-ticket — one issue, one worktree, one space
@@ -14,10 +14,9 @@ is `/ticket`'s flow with this repo's naming and locking.
 
 Requires `HERDR_ENV=1`. Check it first and stop if unset.
 
-**Two modes.** Default: steps 1–5 below — an interactive agent in the new space, briefed
-once. `--oneshot` (and `--continue`, `--open`): the script in *One-shot mode* — no agent to
-babysit, one `claude -p` run that ends, a session you can pick up later. Both cut the same
-worktree with the same name and lock.
+**Use the script.** `ticket.sh` (section *The script*) does steps 1–5 in one call: a stateful
+interactive agent by default, `--oneshot` for one `claude -p` run. The manual steps below are
+what it does, kept for reading and for repos where the script can't run.
 
 ## 1. Read the issue
 
@@ -117,44 +116,55 @@ Issue number, herdr space id and label, branch, worktree path, agent name, and
 what the wait returned. Leave the diff and the PR for human review — do not
 merge, and do not claim a PR exists until `gh pr view` says so.
 
-## One-shot mode (`--oneshot`, `--continue`, `--open`)
+## The script: `ticket.sh` (stateful by default, `--oneshot` is the option)
 
-One issue → one worktree → **one `claude -p` run** that exits when it is done. The worktree,
-the branch and the session stay; pick it up later headless or as a full session. It is a
-script, so the oracle app and an agent run the exact same steps:
+One issue → one worktree named from it → an agent working it. The default is a **stateful**
+interactive `claude` in the worktree's own pane, given the issue brief as its first prompt and left
+running there, so you can talk to it later. `--oneshot` instead runs one `claude -p` turn that exits
+when done and stays resumable. The oracle apps' Issues page runs this script directly. Nat,
+2026-10-08: *"one shot is an option, start with stateful"*.
 
 ```bash
-O=~/.claude/skills/herdr-ticket/oneshot.sh
-bash $O pick 12                       # /herdr-ticket 12 --oneshot
-bash $O pick 12 --dry-run             # name, branch, path, model, notify target — no side effects
-bash $O status 12                     # running? last result, cost, denials, PR
-bash $O continue 12 "fix the failing test, then push"   # /herdr-ticket --continue 12 <msg>
-bash $O open 12                       # /herdr-ticket --open 12 → full `claude --resume` in a pane
+T=~/.claude/skills/herdr-ticket/ticket.sh
+bash $T pick 12                       # /herdr-ticket 12 — stateful agent (your default model)
+bash $T pick 12 --oneshot             # /herdr-ticket 12 --oneshot — one claude -p turn (sonnet)
+bash $T pick 12 --dry-run             # name, branch, path, mode — no side effects
+bash $T status 12                     # live where? running? last one-shot result, PR
+bash $T continue 12 "push and open the PR"   # live agent → typed into it; else claude -p --resume
+bash $T open 12                       # live agent → focused; else full `claude --resume` in a pane
 ```
 
-`pick` does, in order: read the issue (refuses a closed one; an issue that already has a
-worktree gets its status and next commands instead of a second tree) → slug from the title →
-`herdr worktree create` off `origin/<default>` → lock
-`herdr|who|when|<slug>|#N|claude:<uuid>` → `maw token use` + `.envrc` kept out of commits →
-**`claude auth status` gate** → brief written to the worktree's private git dir → the runner
-typed into the new space's root pane → a comment on the issue with the session id and the
-resume command.
+`oneshot.sh` / `oneshot-run.sh` still exist as shims, so commands printed before this change keep
+working: `oneshot.sh pick N` is `ticket.sh pick N --oneshot`.
 
-The run: `claude -p --session-id <uuid> --model sonnet --output-format stream-json --verbose`
-under `direnv exec <worktree>`, piped through `oneshot-view.jq` so the pane shows text, tool
-calls (`⚙`), tool errors (`✗`) and a cost line. It inherits the user's permission mode
-(for example `auto`); `--permission-mode` overrides, `--model` overrides sonnet. The brief tells it
-to commit, push and open a **draft** PR ending in `Closes #N` plus the session and resume
-lines — no merge, no force-push, no `git add -A`.
+`pick` does, in order:
+1. Read the issue. A closed issue is refused. An issue that already has a worktree gets that
+   worktree's status, or its live agent, instead of a second tree.
+2. Make the slug from the title, so the name is ready at once. `/herdr-rename` can improve it
+   later; the brief allows that before the first push.
+3. `herdr worktree create` off `origin/<default>`.
+4. Lock `herdr|who|when|<slug>|#N|claude:<uuid>`.
+5. `maw token use`, and keep `.envrc` out of commits.
+6. Seed `.claude/settings.local.json`, so interactive claude doesn't stop on the project-MCP prompt.
+7. **`claude auth status` gate.**
+8. Write the brief to the worktree's private git dir.
+9. Start the runner in the new space's root pane: `ticket-run.sh agent` for stateful
+   (`exec claude --session-id <uuid> "<brief>"`), or `start` for a one-shot.
+10. Comment on the issue with the session id and the resume command.
 
-When it ends, the runner prints the continue/open commands and, if the caller's pane holds an
-agent (or `--notify <pane>` was given), prompts it with `rc`, session, cost and the first
-300 characters of the result. A bare-shell pane is never notified: the text would run.
+`--json` (pick, open): one line, `{"ok":true,"pane":…,"session":…,"herdr":<server>,…}` or
+`{"ok":false,"error":…,"fix":[…]}` with exit 1. This is what the app reads. `--session <name>`
+names the herdr server and drops an inherited `HERDR_SOCKET_PATH`, which herdr would otherwise
+prefer.
 
-State per worktree, in `<repo>/.git/worktrees/<id>/oneshot/` (never in the diff):
-`brief.md`, `run-<ts>.jsonl` (raw stream), `continue-<ts>.md`, `result.json`, `pid` while
-running. `maw herdr ls --json` already reports the worktree as `resumable` with this session —
-the oracle app's Work page shows it with no change.
+A one-shot inherits your permission mode (for example `auto`). The brief tells either kind to
+commit, push and open a **draft** PR ending in `Closes #N` plus the session and resume lines. It
+says no merge, no force-push, no `git add -A`.
+
+State per worktree, in `<repo>/.git/worktrees/<id>/oneshot/` (never in the diff): `brief.md`,
+`run-<ts>.jsonl`, `continue-<ts>.md`, `result.json`, and `pid` while a one-shot runs.
+`maw herdr ls --json` already reports the worktree with this session, so the oracle app's Work page
+shows it.
 
 Traps, each measured 2026-10-08 on a probe worktree:
 
@@ -165,12 +175,16 @@ Traps, each measured 2026-10-08 on a probe worktree:
 | `cd x && claude` typed into a pane | runs before the shell's direnv hook fires (hook is per prompt) | `cd x && direnv exec . claude --resume …` |
 | `claude --bg` in a new worktree | hung on "New MCP server found: <server>" while `claude agents` said `working` | uses `-p` (skips startup dialogs); `--bg` would need `--settings '{"enableAllProjectMcpServers":true}'` |
 | `--bg --resume` with new flags | started a copy (`6ff1e616`) instead of continuing `e0cd469a` | uses `-p --resume`: same session id every time (verified) |
+| an inherited `HERDR_SOCKET_PATH` | beats `HERDR_SESSION` in herdr; an app relaunched from a pane carried one, so Pick up made the worktree on one server while the app opened the same pane id on another | `--session <name>` drops the inherited socket; the JSON says which server (`herdr`); live agents are searched on every running server |
 | two writers on one session | — (by design) | refuses while `claude agents --json` lists the uuid or the pidfile is alive |
 | `maw token use` rewrites a tracked `.envrc` | would land in the worker's commit | `git update-index --skip-worktree .envrc` (untracked: `info/exclude`) |
 | `claude` started from an agent's own shell | herdr's claude hook reported the child's session for **the calling agent's** pane (`$HERDR_PANE_ID` is inherited) — the caller's pane then named a probe's session, so a herdr reopen would resume the wrong conversation | the runner hides `HERDR_ENV`/`HERDR_PANE_ID` from the child unless its pane's cwd is the worktree; repair a pane with `herdr pane report-agent-session <pane> --source herdr:claude --agent claude --agent-session-id <real-id> --seq "$(python3 -c 'import time; print(time.time_ns())')"` — the seq must be newer than the hook's `time_ns()` |
 
-From the oracle app: the Issues page's **Pick up (one-shot)** puts `/herdr-ticket N --oneshot`
-in the message box; ⌘↩ sends it to the oracle's main agent, which runs `pick` here.
+From the oracle app (v26.10.8-alpha.1420+): on the Issues page, **Pick up** (the pill under the pointer,
+or the context menu) runs `ticket.sh pick N --repo <checkout> --session <oracle's herdr server> --json`
+straight away. The card shows a spinner; on success the app switches to Work with the agent's pane open in
+the drawer, where the message box talks to it. **Pick up as a one-shot** is in the same menu; an issue with a
+worktree offers **Open session**. A failure says "couldn't start" with the error and the fixing command.
 
 ## Cleanup
 
@@ -188,7 +202,7 @@ herdr worktree remove --workspace <wsid> --force
 - **Never `git worktree move` with a live agent in it.** The agent pins cwd at
   startup, cannot follow, and silently falls back to the main repo. The tell is
   `main@<sha>` in its status line instead of the branch, and no 🌳.
-- **One worktree per issue.** `oneshot.sh pick 12` looks for any worktree whose
+- **One worktree per issue.** `ticket.sh pick 12` looks for any worktree whose
   folder says `issue12`/`issue-12` or whose lock says `#12` and, if one exists,
   prints its status and next commands instead of cutting a second tree. The
   manual block above only catches the same name on the same day — check first:
