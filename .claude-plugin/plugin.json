@@ -1,6 +1,6 @@
 {
   "name": "oracle-herdr-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "herdr workflows for Claude Code: parallel worktree spaces, PR signing with a reachable session address, incubating other people's repos, and the traps that shaped each one.",
   "author": {
     "name": "Build with Oracle"
@@ -23,6 +23,19 @@
     "./skills/herdr/herdr-incubate",
     "./skills/herdr/herdr-pr",
     "./skills/herdr/herdr-ticket",
-    "./skills/herdr/herdr-buddy"
+    "./skills/herdr/herdr-buddy",
+    "./skills/herdr/herdr-clean-up-sync",
+    "./skills/herdr/herdr-dissolve",
+    "./skills/herdr/herdr-done",
+    "./skills/herdr/herdr-handover",
+    "./skills/herdr/herdr-hey",
+    "./skills/herdr/herdr-issue",
+    "./skills/herdr/herdr-neighbors",
+    "./skills/herdr/herdr-pane-run",
+    "./skills/herdr/herdr-peek",
+    "./skills/herdr/herdr-send",
+    "./skills/herdr/herdr-sleep",
+    "./skills/herdr/herdr-team",
+    "./skills/herdr/herdr-vacation"
   ]
 }
