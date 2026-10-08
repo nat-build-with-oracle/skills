@@ -63,3 +63,21 @@ git rev-parse --show-toplevel      # you are in a repo
 All three answering means `/herdr-wt`, `/herdr-pr`, `/herdr-bring`,
 `/herdr-incubate`, `/herdr-idea`, `/herdr-ticket` and `/herdr-buddy` will run
 without their setup preconditions failing mid-flight.
+
+## 5. fleet (only for five skills)
+
+`/herdr-clean-up-sync`, `/herdr-dissolve`, `/herdr-issue`, `/herdr-sleep` and
+`/herdr-vacation` call the `fleet` CLI. The other skills do not. Check, and
+install from [herdr-fleet](https://github.com/nat-build-with-oracle/herdr-fleet)
+if it is missing:
+
+```bash
+command -v fleet >/dev/null && fleet help | head -3 || {
+  git clone https://github.com/nat-build-with-oracle/herdr-fleet.git "$(ghq root)/github.com/nat-build-with-oracle/herdr-fleet"
+  cd "$(ghq root)/github.com/nat-build-with-oracle/herdr-fleet"
+  mkdir -p ~/.local/share ~/.local/bin
+  ln -sfn "$PWD" ~/.local/share/herdr-fleet
+  ln -sfn ~/.local/share/herdr-fleet/fleet.ts ~/.local/bin/fleet
+  bun install
+}
+```

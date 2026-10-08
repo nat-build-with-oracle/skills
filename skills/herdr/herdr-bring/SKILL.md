@@ -193,6 +193,33 @@ What that implies: a wrong label on one space silently blocks the *right* repo f
 taking its own name. When the existing space is the mislabelled one, prefer **rename**
 over **relabel**.
 
+## Moving a body to ANOTHER herdr session (herdr to herdr, not tmux)
+
+A herdr pane cannot cross sessions (`pane move` works inside one session). Moving a body means
+starting the same conversation in the target session, ending the old one, and never having both alive.
+Done 2026-10-05 for 5 live bodies (claude x4, codex x1); /herdr-info caught the one duplicate.
+
+1. **Read the body.** Scheduled tasks or background work? (they block `/exit` with a dialog; see traps) Idle? (`herdr --session S agent list` -> status; never move a `working` body, its
+   turn dies.) Its pid and exact flags (`herdr --session S pane process-info --pane P`, then
+   `ps -o command -p PID`), conversation id (`agent_session.value`), cwd.
+2. **New space in the target session at that cwd.** `herdr --session T workspace create --cwd D --label L`,
+   or for a worktree that should nest under its repo's main space
+   `herdr --session T worktree open --workspace <main space> --path D`.
+3. **Arm it.** `herdr --session T pane run NEW 'while kill -0 PID 2>/dev/null; do sleep 1; done; claude <same flags> --resume ID'`
+   (codex: `codex resume ID`, same bypass flags). The wait loop is what guarantees one copy.
+4. **End the old one.** `herdr --session S agent prompt OLD "/exit"` (codex: `/quit`).
+5. **Check.** `/herdr-info <oracle>` -> `warnings: none`; re-apply the agent name (it resets on resume);
+   close the old space only when EVERY pane in EVERY tab is a bare `zsh`: atlas lived as a second tab inside
+   another space, and closing that space would have killed it.
+
+| trap | avoid |
+|---|---|
+| `/exit` stops at "You have N unsent feedback draft(s). Enter to review & send, Esc to discard and exit": the process stays alive, the armed pane keeps waiting (atlas, 2026-10-05) | the human chooses; never press either for them (Enter sends feedback outward, Esc discards a draft) |
+| `/exit` stops at "Background work is running … 1. Exit and stop tasks · 2. Move to background and exit · 3. Stay" (homelab, 2026-10-05: a /loop every 15 min running /cpu-ram-doctor and /cpu-kill) | never pick 2: the old process keeps running, so the resumed copy becomes a second writer. Pick 1 only with the owner's OK, then re-create the same scheduled task in the new copy; to back out, pick 3 (Stay) and close the armed pane |
+| a body that holds a live Discord connection (`--channels plugin:discord`; `DISCORD_STATE_DIR` and `DISCORD_BOT_TOKEN` come from the folder's `.envrc`) | start the new pane in the same folder so direnv gives the same env; the old process must be gone first (one connection per bot) |
+| pane ids repeat across sessions (`<pane>` existed in two) | always `--session`; address by folder or agent name |
+| `maw herdr join` / `break` act on the tab of the pane they run in | they cannot do this move; use the steps above, or `/herdr-room` for rooms inside one session |
+
 ## Traps
 
 - **The agent name is cleared when the pane's occupant is replaced.** Measured
@@ -226,7 +253,8 @@ over **relabel**.
 
 ## What this does NOT do
 
-- Does not touch a session already inside herdr (use `just herdr-fork`).
+- Does not touch a session already inside herdr (use `just herdr-fork`); to move a herdr body to another
+  herdr session see § Moving a body to ANOTHER herdr session.
 - Does not create a worktree — the space checks out the repo's own working
   directory. For a worktree, `/herdr-wt`.
 - Does not restart or fix a stuck maw session. If the busy check refuses one
@@ -238,3 +266,5 @@ over **relabel**.
 - `/herdr-ticket` — a GitHub issue in its own worktree and space
 - `/herdr-incubate` — another oracle's topic from inside the current repo
 - `herdr` — the CLI reference
+- `/herdr-room` — pull live agents into one room and back out, inside one session
+- `/herdr-info` — where every body of an oracle (or a space) runs; run it after any move

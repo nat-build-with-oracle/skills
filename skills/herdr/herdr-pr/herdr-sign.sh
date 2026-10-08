@@ -43,7 +43,8 @@ done
 MODEL="${positional[0]:-<your exact model id>}"
 pane="${positional[1]:-${HERDR_PANE_ID:-}}"
 
-facts=$(herdr agent get "$pane" 2>/dev/null | python3 -c '
+agent_facts() {
+    herdr agent get "$1" 2>/dev/null | python3 -c '
 import json, sys
 try:
     a = json.load(sys.stdin)["result"]["agent"]
@@ -58,7 +59,45 @@ print("\x1f".join([
     a.get("terminal_title_stripped") or "",
     (a.get("agent_session") or {}).get("value", ""),
     a.get("cwd") or "",
-]))' 2>/dev/null)
+]))' 2>/dev/null
+}
+facts=$(agent_facts "$pane")
+
+# HERDR_PANE_ID is fixed when the shell starts. After /herdr-room or `pane move`
+# the agent lives at a new pane id while the env still names the old one, and
+# three agents failed here in one round (2026-10-07). When the id came from the
+# env and resolves to nothing, find the live pane whose foreground processes
+# include an ancestor of this script. That is the session actually running it.
+# Exactly one match, or keep failing: guessing a pane signs someone else's work.
+if [ -z "$facts" ] && [ -z "${positional[1]:-}" ]; then
+    live=$(python3 - "$$" <<'PY' 2>/dev/null
+import json, subprocess, sys
+def run(*a):
+    return subprocess.run(a, capture_output=True, text=True).stdout
+anc, pid = set(), int(sys.argv[1])
+while pid > 1 and pid not in anc:
+    anc.add(pid)
+    out = run("ps", "-o", "ppid=", "-p", str(pid)).strip()
+    pid = int(out) if out.isdigit() else 0
+hits = []
+for a in json.loads(run("herdr", "agent", "list"))["result"]["agents"]:
+    try:
+        pi = json.loads(run("herdr", "pane", "process-info", "--pane", a["pane_id"]))["result"]["process_info"]
+    except Exception:
+        continue
+    pids = {p.get("pid") for p in pi.get("foreground_processes") or []}
+    pids.add(pi.get("foreground_process_group_id"))
+    if pids & anc:
+        hits.append(a["pane_id"])
+print(hits[0] if len(hits) == 1 else "")
+PY
+)
+    if [ -n "$live" ]; then
+        echo "herdr-sign: HERDR_PANE_ID '${pane:-<unset>}' is stale (the pane moved); signing the live pane ${live}, found from this process's ancestors." >&2
+        pane="$live"
+        facts=$(agent_facts "$pane")
+    fi
+fi
 
 # \x1f, not tab: bash collapses runs of whitespace IFS chars, so an agent with no
 # session id or no name silently shifts every later field one column left.
@@ -112,16 +151,34 @@ if [ -n "$ref" ]; then
     work_branch="$ref"
 fi
 
+# Same repo, other checkout: a session in a linked worktree signing a PR whose
+# --work is the main checkout (or another worktree) of the SAME repo. Comparing
+# toplevel paths called that "another repo" and printed the PR under
+# `incubated:` (17 PRs, 2026-10-07). Compare git common dirs instead:
+# one repo has exactly one, however many worktrees it has.
+common_dir() { (cd "$1" 2>/dev/null && cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P); }
+same_repo=0
+if [ "$work_root" != "$root" ]; then
+    a_common=$(common_dir "$root"); b_common=$(common_dir "$work_root")
+    [ -n "$a_common" ] && [ "$a_common" = "$b_common" ] && same_repo=1
+fi
+
 # The session tree's own branch and head. --ref names the commit the signature
 # CITES, and when the PR's repo is the session's own checkout there is no
 # incubated stanza to carry it — so it has to land here or the flag is a silent
 # no-op in exactly the same-repo case traps 5 and 6 tell people to use it for.
+# The same holds for another worktree of the same repo: --work then names the
+# checkout the PR is in, so its branch and head (or --ref) are what get cited.
 tree_branch=$(git -C "$root" branch --show-current 2>/dev/null)
 tree_head=$(git -C "$root" log --oneline -1 2>/dev/null)
-if [ -n "$ref" ] && [ "$work_root" = "$root" ]; then
+if { [ -n "$ref" ] && [ "$work_root" = "$root" ]; } || [ "$same_repo" = 1 ]; then
     tree_branch="$work_branch"
     tree_head="$work_head"
 fi
+work_line=""
+[ "$same_repo" = 1 ] && work_line="
+  work: >-
+    ${work_root}"
 
 # /incubate drops this breadcrumb into every repo it clones. It is the only record
 # tying a foreign checkout back to the oracle working it.
@@ -223,9 +280,10 @@ if [ "$redact" = "0" ]; then
     ${HERDR_SOCKET_PATH:-~/.config/herdr/herdr.sock (default; not run from a pane)}"
 fi
 
-# The incubated group only exists when the PR's repo is not the session's own.
+# The incubated group only exists when the PR's repo is not the session's own:
+# a different repo, not just a different worktree of the same one.
 incubated_group=""
-if [ "$work_root" != "$root" ]; then
+if [ "$work_root" != "$root" ] && [ "$same_repo" = 0 ]; then
     incubated_group="
 incubated:
   repo: >-
@@ -263,7 +321,7 @@ worktree:
   wt: >-
     ${where}
   head: >-
-    ${tree_head}
+    ${tree_head}${work_line}
 ${incubated_group}
 session:
   id: >-

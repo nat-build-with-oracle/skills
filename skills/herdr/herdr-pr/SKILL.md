@@ -38,7 +38,7 @@ herdr agent read   <name>               # what it printed back
 herdr agent focus  <name>               # jump a terminal there
 ```
 
-Second arg signs another pane: `herdr-sign.sh gpt-5-codex w24:p5` — for a lead
+Second arg signs another pane: `herdr-sign.sh gpt-5-codex <pane>` — for a lead
 signing a worker's PR.
 
 ## Agents
@@ -61,7 +61,7 @@ Repo wrapper, when it exists: `just herdr-sign <model-id>`.
 
 | target | `herdr agent get` |
 |---|---|
-| pane id `w2F:p1` | works, but reassigned after a herdr restart |
+| pane id `<pane>` | works, but reassigned after a herdr restart |
 | agent name | works once claimed, re-claimable |
 | workspace label (what the sidebar shows) | `agent_not_found` |
 
@@ -89,6 +89,31 @@ reviewers at the wrong agent; that's worse than pointing nowhere.
    the tree's branch anyway. Traps 5 and 6 are both same-repo, so the flag did
    nothing in exactly the cases it exists for, and the block still looked
    right. Test every flag in both shapes: with `--work` and without.
+8. **`$HERDR_PANE_ID` goes stale after a pane move.** A shell keeps the pane id
+   it started with. After `/herdr-room` in/out or `pane move`, the agent has a new
+   id, and the script fails with `no herdr agent for pane '<pane>'`. Pass the live
+   id as the 2nd argument, found by name:
+   `herdr agent list | jq -r '.result.agents[] | select(.name=="<you>") | .pane_id'`.
+   On 2026-10-07 three agents hit this in one round:
+   each had moved to a new pane id and the env still named the old one.
+   **Fixed in the script the same morning:** when the id came from the env and
+   resolves to nothing, the script finds the one live pane whose foreground
+   processes include an ancestor of itself, signs that pane, and says so on stderr.
+   An explicit pane id that doesn't resolve still fails; nothing is guessed.
+9. **A worktree session plus `--work <main checkout>` mislabels a same-repo PR as
+   `incubated:`.** The script decides "another repo" by comparing toplevel *paths*,
+   not git common dirs, so a linked worktree of the same repo counts as different.
+   The `incubated:` stanza then carries the PR's ref, and `worktree:` shows the
+   session's own branch. The commit is right; the label is wrong. For a PR in the
+   session's own repo, pass `--work <your own worktree path>` with `--ref`. The PR
+   commit then lands in `worktree:` with no `incubated:` stanza (checked on
+   2026-10-07 for a same-checkout `--ref`). one agent signed 17 PRs that
+   night with the mislabel. **Fixed in the script the same morning:** it compares
+   `git rev-parse --git-common-dir`. Another worktree of the same repo now puts the
+   PR's branch and head (or `--ref`) in `worktree:` and adds a `work:` line for the
+   PR checkout. `incubated:` appears only for a genuinely different repo. Tested:
+   same repo other worktree, with and without `--ref`; a different repo; the same
+   checkout with `--ref`; a stale env pane; a wrong explicit pane.
 
 After editing the script, `ls` both printed paths. A block whose paths 404 reads
 authoritative and sends people nowhere.
@@ -125,7 +150,7 @@ worktree:
 
 incubated:          # only when --work names a different repo
   repo: >-
-    <org>/idea-11sep-fri2026-cc-chat-ui
+    nat-build-with-oracle/idea-11sep-fri2026-cc-chat-ui
   branch: >-
     feat/server-side-repository-preferences
   head: >-
@@ -149,9 +174,9 @@ herdr:
   address: >-
     neo-digger
   pane: >-
-    w2N:p1
+    <pane>
   tab: >-
-    w2N:t1
+    <tab>
   space: >-
     neo-digger-16sep-wed2026
   title: >-
