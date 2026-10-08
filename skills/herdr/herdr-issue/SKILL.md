@@ -32,7 +32,7 @@ repo=<that path>; slug=$(git -C "$repo" remote get-url origin | sed -E 's#.*gith
 ```
 
 When a name matches several repos (for example `pulse` matches <org>/pulse,
-<org>/pulse-oracle and Soul-Brews-Studio/pulse-oracle), list them and ask. Do not
+<org>/pulse-oracle and <other-org>/pulse-oracle), list them and ask. Do not
 pick one.
 
 Before writing, search for an open issue that already covers the task:
